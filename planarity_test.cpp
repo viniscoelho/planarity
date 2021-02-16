@@ -1,6 +1,6 @@
 /*
     A fast implementation of Nagamochi et al (2004) planarity test algorithm.
-    The algorithm tests ONLY wether a graph is maximal planar or not.
+    The algorithm tests ONLY whether a graph is maximal planar or not.
 */
 
 #include <iomanip>
@@ -8,63 +8,38 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <algorithm>
 #define pb push_back
 #define mp make_pair
 #define MAX 5010
 
-bool read(int& n)
-{
-    n = 0;
-    register bool neg = false;
-    register char c = getchar_unlocked();
-    if (c == EOF) {
-        n = -1;
-        return false;
-    }
-    while (!('0' <= c && c <= '9')) {
-        if (c == '-')
-            neg = true;
-        c = getchar_unlocked();
-    }
-    while ('0' <= c && c <= '9') {
-        n = n * 10 + c - '0';
-        c = getchar_unlocked();
-    }
-    n = (neg ? (-n) : (n));
-    return true;
-}
-
 using namespace std;
 
+#include "includes/helpers.hpp"
+
 /*
-    Number vertices and edges
+    V -> number of vertices
+    E -> number of edges
 */
-int N, M;
+int V, E;
 
 vector<int> graph[MAX];
-int bib[MAX];
-
-void printElapsedTime(clock_t start, clock_t stop)
-{
-    double elapsed = ((double)(stop - start)) / CLOCKS_PER_SEC;
-    cout << fixed << setprecision(3) << "Elapsed time: " << elapsed << "s\n";
-}
+int vertex_map[MAX];
 
 /*
-    Check if the graph has a vertex with degree <= 5 and
-    returns the first one found.
-    Otherwise, returns -1
+    getVertex checks if the graph has a vertex with degree <= 5 and
+    returns the first one found. Otherwise, returns -1.
 */
 int getVertex()
 {
-    for (int v = 0; v < N; v++)
+    for (int v = 0; v < V; v++)
         if (graph[v].size() <= 5)
             return v;
     return -1;
 }
 
 /*
-    Check if three given vertices form a triangle
+    isTriangle checks if three vertices form a triangle.
 */
 bool isTriangle(int v1, int v2, int vn)
 {
@@ -81,53 +56,53 @@ bool isTriangle(int v1, int v2, int vn)
 }
 
 /*
-    Given three vertices, returns a canonical order of V(G)
+    order returns a canonical order of V(G) of three given vertices.
 */
 vector<int> order(int v1, int v2, int vn)
 {
-    //vector<int> graph_[MAX];
-    vector<int> VC, vi(N);
-    //vi - vector with the output order of vertices
+    // vector<int> graph_[MAX];
+    vector<int> VC, vi(V);
+    // vi -> vector with the output order of vertices
     vi[0] = v1;
     vi[1] = v2;
     VC.pb(v1);
     VC.pb(v2);
     VC.pb(vn);
 
-    //x - number of elements in VC
-    int x = VC.size(), pos = N - 1;
+    // x -> number of elements in VC
+    int x = VC.size(), pos = V - 1;
 
-    //set with remaining and removed vertices
-    set<int> V, R;
-    //insert all vertices but v1 and v2
-    for (int i = 0; i < N; i++)
+    // set with remaining and removed vertices
+    set<int> vertices, R;
+    // insert all vertices but v1 and v2
+    for (int i = 0; i < V; i++)
         if (v1 != i && v2 != i)
-            V.insert(i);
+            vertices.insert(i);
 
     int v;
-    while (!V.empty()) {
-        //note: set_intersection only works if both intersecting sets are sorted
+    while (!vertices.empty()) {
+        // note: set_intersection only works if both intersecting sets are sorted
         sort(VC.begin(), VC.end());
-        //vectors used for intersection and union operations
-        vector<int> a(N), b(N);
+        // vectors used for intersection and union operations
+        vector<int> a(V), b(V);
         vector<int>::iterator vit;
         int sz = -1;
 
-        //choose a vertex v belonging to VC which is neither v1 nor v2
-        //and which its neighbours' intersection with VC has size == 2.
+        // choose a vertex v belonging to VC which is neither v1 nor v2
+        // and which its neighbours' intersection with VC has size == 2.
         for (int i = 0; i < x; i++) {
             if (VC[i] == v1 || VC[i] == v2)
                 continue;
             v = VC[i];
-            //always resize the sink after an intersection
+            // always resize the sink after an intersection
             vit = set_intersection(graph[v].begin(), graph[v].end(), VC.begin(), VC.end(), a.begin());
             sz = (int)(vit - a.begin());
             a.resize(sz);
 
             vector<int> aux;
             for (int k = 0; k < sz; k++) {
-                //check if a removed vertex is within the intersection.
-                //if it is, do not put it
+                // check if a removed vertex is within the intersection.
+                // if it is, do not put it
                 if (!R.count(a[k])) {
                     aux.pb(a[k]);
                 }
@@ -137,11 +112,11 @@ vector<int> order(int v1, int v2, int vn)
                 continue;
             break;
         }
-        //if such vertex does not exist, halt.
+        // if such vertex does not exist, halt.
         if (sz != 2)
             return vector<int>();
 
-        //otherwise, remove this vertex from VC
+        // otherwise, remove this vertex from VC
         for (int i = 0; i < x; i++) {
             if (VC[i] == v) {
                 swap(VC[i], VC[x - 1]);
@@ -150,7 +125,7 @@ vector<int> order(int v1, int v2, int vn)
             }
         }
 
-        //and join VC with the chosen vertex's neighbours.
+        // and join VC with the chosen vertex's neighbours.
         sort(VC.begin(), VC.end());
         vit = set_union(VC.begin(), VC.end(), graph[v].begin(), graph[v].end(), b.begin());
         x = (int)(vit - b.begin());
@@ -158,8 +133,8 @@ vector<int> order(int v1, int v2, int vn)
 
         vector<int> aux;
         for (int k = 0; k < x; k++) {
-            //check if a removed vertex is within the union.
-            //if it is, do not put it
+            // check if a removed vertex is within the union.
+            // if it is, do not put it
             if (!R.count(b[k])) {
                 aux.pb(b[k]);
             }
@@ -167,10 +142,10 @@ vector<int> order(int v1, int v2, int vn)
         x = aux.size();
         VC = aux;
 
-        V.erase(v);
+        vertices.erase(v);
         R.insert(v);
 
-        //add the chosen vertex to the answer
+        // add the chosen vertex to the answer
         vi[pos] = v;
         pos--;
     }
@@ -179,7 +154,8 @@ vector<int> order(int v1, int v2, int vn)
 }
 
 /*
-    Check if a set of vertices appear consecutively into another sequence.
+    areConsecutive checks if a set of vertices appear
+    consecutively into another sequence.
 */
 bool areConsecutive(vector<int>& tmp, vector<int>& VC)
 {
@@ -187,9 +163,9 @@ bool areConsecutive(vector<int>& tmp, vector<int>& VC)
     vector<int> aux = VC;
     if (t > k)
         return false;
-    //where is the lower bound occurence of an element of the intersection?
+    // where is the lower bound occurence of an element of the intersection?
     for (int i = 0; i < t; i++) {
-        k = min(k, bib[tmp[i]]);
+        k = min(k, vertex_map[tmp[i]]);
     }
 
     if (k + t > sz)
@@ -204,7 +180,7 @@ bool areConsecutive(vector<int>& tmp, vector<int>& VC)
 }
 
 /*
-    Check if the graph has a planar embedding
+    embed checks if the graph has a planar embedding.
 */
 vector<int> embed(vector<int>& pi)
 {
@@ -213,10 +189,10 @@ vector<int> embed(vector<int>& pi)
     VC.pb(pi[2]);
     VC.pb(pi[1]);
 
-    for (int i = 3; i < N; i++) {
-        vector<int> tmp(2 * N);
+    for (int i = 3; i < V; i++) {
+        vector<int> tmp(2 * V);
         vector<int>::iterator vit;
-        //sublist {u_p, u_p+1, ..., u_p+n} = {v1, ..., v_i-1} inter NG(vi)
+        // sublist {u_p, u_p+1, ..., u_p+n} = {v1, ..., v_i-1} inter NG(vi)
         sort(sorted_pi.begin(), sorted_pi.begin() + i);
 
         vit = set_intersection(sorted_pi.begin(), sorted_pi.begin() + i, graph[pi[i]].begin(), graph[pi[i]].end(), tmp.begin());
@@ -224,14 +200,14 @@ vector<int> embed(vector<int>& pi)
         tmp.resize(sz);
 
         for (int j = 0; j < VC.size(); j++)
-            bib[VC[j]] = j;
+            vertex_map[VC[j]] = j;
 
-        //where is the lower and higher bound occurences of the elements
-        //on the intersection?
+        // where is the lower and higher bound occurences of the elements
+        // on the intersection?
         int lb = VC.size(), hb = -1;
         for (int i = 0; i < tmp.size(); i++) {
-            lb = min(lb, bib[tmp[i]]);
-            hb = max(hb, bib[tmp[i]]);
+            lb = min(lb, vertex_map[tmp[i]]);
+            hb = max(hb, vertex_map[tmp[i]]);
         }
 
         if (areConsecutive(tmp, VC)) {
@@ -260,12 +236,12 @@ vector<int> embed(vector<int>& pi)
 bool recognize()
 {
     int v1 = getVertex(), v2, p = graph[v1].size();
-    if (M != (3 * N - 6) || v1 == -1)
+    if (E != (3 * V - 6) || v1 == -1)
         return false;
     v2 = graph[v1][p - 1];
     for (int i = 0; i < p - 2; i++) {
         int vn = graph[v1][i];
-        cout << "vn " << vn + 1 << endl;
+        cout << "vn " << vn + 1 << "\n";
         if (!isTriangle(v1, v2, vn))
             continue;
 
@@ -275,12 +251,12 @@ bool recognize()
         if (!pi.size())
             continue;
 
-        cout << "Order" << endl;
+        cout << "Order" << "\n";
         for (int k = 0; k < pi.size(); k++) {
             cout << pi[k] + 1 << " ";
-            bib[pi[k]] = k;
+            vertex_map[pi[k]] = k;
         }
-        cout << endl;
+        cout << "\n";
 
         vector<int> ans = embed(pi);
         if (ans.size())
@@ -291,26 +267,25 @@ bool recognize()
 
 int main()
 {
-    //ios::sync_with_stdio(false);
+    // ios::sync_with_stdio(false);
     int vj;
     clock_t start, stop;
     start = clock();
-    read(N);
+    read(V);
 
-    M = 0;
-
-    for (int i = 0; i < N - 1; i++) {
-        for (int j = i + 1; j < N; j++) {
+    E = 0;
+    for (int i = 0; i < V - 1; i++) {
+        for (int j = i + 1; j < V; j++) {
             read(vj);
             if (vj == -1)
                 continue;
             graph[i].pb(j);
             graph[j].pb(i);
-            M++;
+            E++;
         }
     }
 
-    for (int i = 0; i < N; i++)
+    for (int i = 0; i < V; i++)
         sort(graph[i].begin(), graph[i].end());
 
     puts(recognize() ? "YES" : "NO");

@@ -1,6 +1,6 @@
 /*
     A fast implementation of Nagamochi et al (2004) planarity test algorithm.
-    The algorithm tests ONLY wether a graph is maximal planar or not.
+    The algorithm tests ONLY whether a graph is maximal planar or not.
     The following implementation uses hash.
 */
 
@@ -19,75 +19,32 @@ using namespace std;
 
 typedef unsigned long long uint64;
 
-/*
-    Fast input
-*/
-bool read(int& n)
-{
-    n = 0;
-    register bool neg = false;
-    register char c = getchar_unlocked();
-    if (c == EOF) {
-        n = -1;
-        return false;
-    }
-    while (!('0' <= c && c <= '9')) {
-        if (c == '-')
-            neg = true;
-        c = getchar_unlocked();
-    }
-    while ('0' <= c && c <= '9') {
-        n = n * 10 + c - '0';
-        c = getchar_unlocked();
-    }
-    n = (neg ? (-n) : (n));
-    return true;
-}
+#include "includes/helpers.hpp"
+#include "includes/bucket_hash.hpp"
 
 /*
-    Number vertices and edges
+    V -> number of vertices
+    E -> number of edges
 */
-int N, M;
+int V, E;
 
 vector<int> planar[MAX];
-int bib[MAX];
-uint64 mat[81];
-
-void printElapsedTime(clock_t start, clock_t stop)
-{
-    double elapsed = ((double)(stop - start)) / CLOCKS_PER_SEC;
-    cout << fixed << setprecision(3) << "Elapsed time: " << elapsed << "s\n";
-}
+int vertex_map[MAX];
 
 /*
-    Hash functions
-*/
-bool find(int val)
-{
-    int pos = val / 62;
-    return mat[pos] & (1LL << (val % 63));
-}
-
-void insert(int val)
-{
-    mat[val / 62] |= (1LL << (val % 63));
-}
-
-/*
-    Check if the graph has a vertex with degree <= 5 and
-    returns the first one found.
-    Otherwise, returns -1
+    getVertex checks if the graph has a vertex with degree <= 5 and
+    returns the first one found. Otherwise, returns -1.
 */
 int getVertex()
 {
-    for (int v = 0; v < N; v++)
+    for (int v = 0; v < V; v++)
         if (planar[v].size() <= 5)
             return v;
     return -1;
 }
 
 /*
-    Check if three given vertices form a triangle
+    isTriangle checks if three vertices form a triangle.
 */
 bool isTriangle(int v1, int v2, int vn)
 {
@@ -104,42 +61,42 @@ bool isTriangle(int v1, int v2, int vn)
 }
 
 /*
-    Given three vertices, returns a canonical order of V(G)
+    order returns a canonical order of V(G) of three given vertices.
 */
 vector<int> order(int v1, int v2, int vn)
 {
-    //vector<int> planar_[MAX];
-    vector<int> VC, vi(N);
-    //vi - vector with the output order of vertices
+    // vector<int> planar_[MAX];
+    vector<int> VC, vi(V);
+    // vi -> vector with the output order of vertices
     vi[0] = v1;
     vi[1] = v2;
     VC.pb(v1);
     VC.pb(v2);
     VC.pb(vn);
 
-    //x - number of elements in VC
-    int x = VC.size(), pos = N - 1;
+    // x -> number of elements in VC
+    int x = VC.size(), pos = V - 1;
 
-    //set with remaining and removed vertices
-    set<int> V, R;
-    //insert all vertices but v1 and v2
-    for (int i = 0; i < N; i++)
+    // set with remaining and removed vertices
+    set<int> Vertices, R;
+    // insert all vertices but v1 and v2
+    for (int i = 0; i < V; i++)
         if (v1 != i && v2 != i)
-            V.insert(i);
+            Vertices.insert(i);
 
-    while (!V.empty()) {
+    while (!Vertices.empty()) {
         int v, sz = -1;
 
-        //choose a vertex v belonging to VC which is neither v1 nor v2
-        //and which its neighbours' intersection with VC has size == 2.
+        // choose a vertex v belonging to VC which is neither v1 nor v2
+        // and which its neighbours' intersection with VC has size == 2.
         for (int i = 0; i < x; i++) {
             if (VC[i] == v1 || VC[i] == v2)
                 continue;
             v = VC[i];
 
-            //intersection
+            // intersection
             for (int k = 0; k < 81; k++)
-                mat[k] = 0;
+                bucket[k] = 0;
             for (int k = 0; k < VC.size(); k++) {
                 int at = VC[k];
                 insert(at);
@@ -157,11 +114,11 @@ vector<int> order(int v1, int v2, int vn)
                 continue;
             break;
         }
-        //if such vertex does not exist, halt.
+        // if such vertex does not exist, halt.
         if (sz != 2)
             return vector<int>();
 
-        //otherwise, remove this vertex from VC
+        // otherwise, remove this vertex from VC
         for (int i = 0; i < x; i++) {
             if (VC[i] == v) {
                 swap(VC[i], VC[x - 1]);
@@ -170,14 +127,14 @@ vector<int> order(int v1, int v2, int vn)
             }
         }
 
-        V.erase(v);
+        Vertices.erase(v);
         R.insert(v);
 
-        //and join VC with the chosen vertex's neighbours.
-        //union
+        // and join VC with the chosen vertex's neighbours.
+        // union
         vector<int> aux;
         for (int k = 0; k < 81; k++)
-            mat[k] = 0;
+            bucket[k] = 0;
         for (int k = 0; k < VC.size(); k++) {
             int at = VC[k];
             insert(at);
@@ -192,7 +149,7 @@ vector<int> order(int v1, int v2, int vn)
         x = aux.size();
         VC = aux;
 
-        //add the chosen vertex to the answer
+        // add the chosen vertex to the answer
         vi[pos] = v;
         pos--;
     }
@@ -201,7 +158,8 @@ vector<int> order(int v1, int v2, int vn)
 }
 
 /*
-    Check if a set of vertices appear consecutively into another sequence.
+    areConsecutive checks if a set of vertices appear
+    consecutively into another sequence.
 */
 bool areConsecutive(vector<int>& tmp, vector<int>& VC)
 {
@@ -210,12 +168,12 @@ bool areConsecutive(vector<int>& tmp, vector<int>& VC)
     if (t > sz)
         return false;
 
-    //where is the lower bound occurence of an element on the intersection?
+    // where is the lower bound occurence of an element on the intersection?
     for (int k = 0; k < 81; k++)
-        mat[k] = 0;
+        bucket[k] = 0;
     for (int i = 0; i < t; i++) {
         insert(tmp[i]);
-        k = min(k, bib[tmp[i]]);
+        k = min(k, vertex_map[tmp[i]]);
     }
 
     if (k + t > sz)
@@ -229,7 +187,7 @@ bool areConsecutive(vector<int>& tmp, vector<int>& VC)
 }
 
 /*
-    Check if the graph has a planar embedding
+    embed checks if the graph has a planar embedding.
 */
 bool embed(vector<int>& pi)
 {
@@ -238,14 +196,14 @@ bool embed(vector<int>& pi)
     VC.pb(pi[2]);
     VC.pb(pi[1]);
 
-    for (int i = 3; i < N; i++) {
-        //sublist {u_p, u_p+1, ..., u_p+n} = {v1, ..., v_i-1} inter NG(vi)
-        //note: optimize this later...
+    for (int i = 3; i < V; i++) {
+        // sublist {u_p, u_p+1, ..., u_p+n} = {v1, ..., v_i-1} inter NG(vi)
+        // note: optimize this later...
 
-        //intersection
-        //node *inter = NULL;
+        // intersection
+        // node *inter = NULL;
         for (int k = 0; k < 81; k++)
-            mat[k] = 0;
+            bucket[k] = 0;
         for (int k = 0; k < i; k++) {
             insert(pi[k]);
         }
@@ -258,14 +216,14 @@ bool embed(vector<int>& pi)
         }
 
         for (int j = 0; j < VC.size(); j++)
-            bib[VC[j]] = j;
+            vertex_map[VC[j]] = j;
 
-        //where is the lower and higher bound occurences of the elements
-        //on the intersection?
+        // where is the lower and higher bound occurences of the elements
+        // on the intersection?
         int lb = VC.size(), hb = -1;
         for (int i = 0; i < tmp.size(); i++) {
-            lb = min(lb, bib[tmp[i]]);
-            hb = max(hb, bib[tmp[i]]);
+            lb = min(lb, vertex_map[tmp[i]]);
+            hb = max(hb, vertex_map[tmp[i]]);
         }
 
         if (areConsecutive(tmp, VC)) {
@@ -289,17 +247,17 @@ bool embed(vector<int>& pi)
 }
 
 /*
-    Recognizes if a given graph is either maximal planar or not
+    recognize checks if a given graph is either maximal planar or not.
 */
 bool recognize()
 {
     int v1 = getVertex(), v2, p = planar[v1].size();
-    if (M != (3 * N - 6) || v1 == -1)
+    if (E != (3 * V - 6) || v1 == -1)
         return false;
     v2 = planar[v1][p - 1];
     for (int i = 0; i < p - 2; i++) {
         int vn = planar[v1][i];
-        cout << "vn " << vn + 1 << endl;
+        cout << "vn " << vn + 1 << "\n";
         if (!isTriangle(v1, v2, vn))
             continue;
 
@@ -309,14 +267,14 @@ bool recognize()
         if (!pi.size())
             continue;
 
-        cout << "Order" << endl;
-        for (int j = 0; j < N; j++)
-            bib[i] = -1;
-        for (int k = 0; k < N; k++) {
+        cout << "Order" << "\n";
+        for (int j = 0; j < V; j++)
+            vertex_map[i] = -1;
+        for (int k = 0; k < V; k++) {
             cout << pi[k] + 1 << " ";
-            bib[pi[k]] = k;
+            vertex_map[pi[k]] = k;
         }
-        cout << endl;
+        cout << "\n";
 
         if (embed(pi))
             return true;
@@ -326,23 +284,23 @@ bool recognize()
 
 int main()
 {
-    //ios::sync_with_stdio(false);
+    // ios::sync_with_stdio(false);
     int vj;
     clock_t start, stop;
     start = clock();
-    read(N);
+    read(V);
 
-    M = 0;
+    E = 0;
     int W = 0;
-    for (int i = 0; i < N; i++) {
-        for (int j = i + 1; j < N; j++) {
+    for (int i = 0; i < V; i++) {
+        for (int j = i + 1; j < V; j++) {
             read(vj);
             if (vj == -1)
                 continue;
             W += vj;
             planar[i].pb(j);
             planar[j].pb(i);
-            M++;
+            E++;
         }
     }
 
